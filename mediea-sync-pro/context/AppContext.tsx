@@ -18,6 +18,7 @@ interface AppContextType {
   membersLoading: boolean;
   addMember: (name: string, role: Role, email?: string) => Promise<void>;
   deleteMember: (id: string) => Promise<void>;
+  updateMemberRole: (id: string, newRole: Role) => Promise<void>;
   refreshMembers: () => Promise<void>;
 
   // Tasks
@@ -148,6 +149,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const deleteMember = async (id: string) => {
     const { error } = await supabase.from('members').delete().eq('id', id);
     if (!error) await refreshMembers();
+  };
+
+  const updateMemberRole = async (id: string, newRole: Role) => {
+    // Optimistic update
+    setMembers(prev => prev.map(m => m.id === id ? { ...m, role: newRole } : m));
+    const { error } = await supabase.from('members').update({ role: newRole }).eq('id', id);
+    if (error) {
+      // Revert on error
+      await refreshMembers();
+    }
   };
 
   // --- Tasks CRUD ---
@@ -312,7 +323,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   return (
     <AppContext.Provider value={{
       user, profile, currentRole, loading, signOut,
-      members, membersLoading, addMember, deleteMember, refreshMembers,
+      members, membersLoading, addMember, deleteMember, updateMemberRole, refreshMembers,
       tasks, tasksLoading, addTask, updateTaskStatus, updateTaskAssignee, updateTaskFile, refreshTasks,
       finances, financesLoading, addFinance, deleteFinance, refreshFinances,
       projectSettings, settingsLoading, addRule, deleteRule, addLink, deleteLink, refreshSettings,
